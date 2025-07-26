@@ -3,6 +3,7 @@ from app.Utils.database import engine, Base
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from app.Seller.route import seller_router
+from app.Vendor.route import vendor_router
 
 
 app = FastAPI()
@@ -30,4 +31,9 @@ app.include_router(
     seller_router,
     prefix="/seller",
     tags=["Seller Management"]
+)
+app.include_router(
+    vendor_router,
+    prefix="/vendor",
+    tags=["Vendor Management"]
 )
