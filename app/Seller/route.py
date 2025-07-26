@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status , Response , Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from app.Seller.schema import SellerCreate, SellerProfileSchema, SellerResponse, FactoryCreate, FactoryResponse, LocationCreate, LocationResponse, ProductBase, ProductResponse, Token
+from app.Seller.schema import LocationSchema, SellerCreate, SellerProfileSchema, SellerResponse, FactoryCreate, FactoryResponse, LocationCreate, LocationResponse, ProductBase, ProductResponse, SellerSearchSchemaResponse, Token
 from app.Seller.service import SellerAuthService, SellerService
 from typing import List, Optional
 from app.Utils.database import get_db  
@@ -55,3 +55,9 @@ async def seller_profile(db: Session = Depends(get_db) , seller = Depends(get_cu
     if not seller :
         raise HTTPException(status_code=400 , detail= "Seller Detail Not Found")
     return await SellerService.get_seller_profile(db , seller)
+
+# seller search api 
+@seller_router.post("/search/", status_code=200)
+async def seller_search_by_loc(loc : LocationSchema , db: Session = Depends(get_db)):
+   
+    return await SellerService.get_nearby_sellers(db , loc)
