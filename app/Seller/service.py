@@ -1,4 +1,8 @@
+from cmath import acos, cos, sin
 from datetime import timedelta
+from math import radians
+
+from sqlalchemy import func
 from app.Seller.models import *
 from app.Seller.schema import *
 from sqlalchemy.orm import Session
@@ -6,6 +10,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
+from math import radians, cos, sin, acos
+from geopy.geocoders import Nominatim
 from passlib.context import CryptContext
 import os
 from dotenv import load_dotenv
@@ -173,6 +179,66 @@ class SellerService :
             raise HTTPException(status_code=500, detail=str(db_error))
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+        
+    @staticmethod
+    async def get_city_from_latlon(lat, lon):
+        geolocator = Nominatim(user_agent="vendor_locator")
+        location = geolocator.reverse((lat, lon), exactly_one=True)
+        return location.raw.get("address", {}).get("city", "")
+    
+    @staticmethod
+    @staticmethod
+    def haversine_sql_expr(user_lat, user_lon):
+        return (
+            6371 * func.acos(
+                func.cos(func.radians(user_lat)) * func.cos(func.radians(Location.latitude)) *
+                func.cos(func.radians(Location.longitude) - func.radians(user_lon)) +
+                func.sin(func.radians(user_lat)) * func.sin(func.radians(Location.latitude))
+            )
+        )
+        
+    @staticmethod
+    async def get_nearby_sellers(db : Session , loc : LocationSchema ) :
+        try :
+            city = await SellerService.get_city_from_latlon(loc.latitude , loc.longtitude)
+
+            if not city:
+                raise HTTPException(status_code=400 , detail="Cant Locate Your City Currently")
+            
+            db.connection().connection.create_function("radians", 1, radians)
+            db.connection().connection.create_function("cos", 1, cos)
+            db.connection().connection.create_function("sin", 1, sin)
+            db.connection().connection.create_function("acos", 1, acos)
+
+            # Haversine expression
+            distance_expr =  SellerService.haversine_sql_expr(loc.latitude, loc.longtitude).label("distance_km")
+
+            
+            query = (
+                db.query(
+                    Seller,
+                    distance_expr
+                )
+                .join(Factory, Factory.seller_id == Seller.id)
+                .join(Location, Location.factory_id == Factory.id)
+                .filter(Location.city == city)
+                .filter(distance_expr <= 5.0)
+                .order_by(distance_expr.asc())
+            )
+
+            sellers = query.all()
+            print(sellers)
+
+            return [
+                SellerSearchSchemaResponse(seller=seller, distance=distance)
+                for seller, distance in sellers
+            ]
+        except SQLAlchemyError as db_error:
+            raise HTTPException(status_code=500, detail=str(db_error))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+        
 
             
 

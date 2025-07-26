@@ -107,3 +107,14 @@ class SellerProfileSchema(BaseModel) :
 
     
 
+class LocationSchema(BaseModel) :
+    latitude : float
+    longtitude : float
+
+
+class SellerSearchSchemaResponse(BaseModel) :
+    seller : SellerProfileSchema
+    distance : float
+
+    class Config :
+        from_attributes = True
