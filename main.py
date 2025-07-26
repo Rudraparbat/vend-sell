@@ -15,18 +15,17 @@ Base.metadata.create_all(bind=engine)
 
 # os.makedirs(os.getenv("UPLOAD_DIR"), exist_ok=True)
 allow_origin = [
-    "http://localhost:5173/",
-    "http://localhost:3000/",
+    "http://localhost:5173",
+    "http://localhost:3000",
 ]
-# include middleware
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origin,
+    allow_origins=allow_origin,   # ✅ No trailing slashes
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
-
 app.include_router(
     seller_router,
     prefix="/seller",
