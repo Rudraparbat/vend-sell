@@ -61,3 +61,8 @@ async def seller_profile(db: Session = Depends(get_db) , seller = Depends(get_cu
 async def seller_search_by_loc(loc : LocationSchema , db: Session = Depends(get_db)):
    
     return await SellerService.get_nearby_sellers(db , loc)
+
+@seller_router.post("/default/search/", status_code=200)
+async def seller_search_by_default(loc : LocationSchema , db: Session = Depends(get_db) ,city : Optional[str] = None):
+   
+    return await SellerService.get_all_sellers_for_city(db , loc , city) 

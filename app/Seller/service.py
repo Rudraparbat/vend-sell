@@ -237,6 +237,45 @@ class SellerService :
             raise HTTPException(status_code=500, detail=str(db_error))
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
+        
+    @staticmethod
+    async def get_all_sellers_for_city(db : Session , loc : LocationSchema , city : str) :
+        try :
+            if city is None :
+                city = await SellerService.get_city_from_latlon(loc.latitude , loc.longtitude)
+
+                if not city:
+                    raise HTTPException(status_code=400 , detail="Cant Locate Your City Currently")
+            
+            print(city)
+
+            # Haversine expression
+            distance_expr =  SellerService.haversine_sql_expr(loc.latitude, loc.longtitude).label("distance_km")
+
+            
+            query = (
+                db.query(
+                    Seller,
+                    distance_expr
+                )
+                .join(Factory, Factory.seller_id == Seller.id)
+                .join(Location, Location.factory_id == Factory.id)
+                .filter(Location.city == city)
+                .order_by(distance_expr.asc())
+            )
+
+            sellers = query.all()
+            print(sellers)
+
+            return [
+                SellerSearchSchemaResponse(seller=seller, distance=distance)
+                for seller, distance in sellers
+            ]
+        except SQLAlchemyError as db_error:
+            raise HTTPException(status_code=500, detail=str(db_error))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
 
         
 
