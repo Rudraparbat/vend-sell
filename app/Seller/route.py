@@ -27,8 +27,8 @@ async def create_location(location: LocationCreate, db: Session = Depends(get_db
 
     return await SellerService.create_location(db, location)
 
-@seller_router.post("/products/create/", response_model=ProductResponse)
-async def create_product(product: ProductBase, db: Session = Depends(get_db)):
+@seller_router.post("/products/create/")
+async def create_product(product: List[ProductBase], db: Session = Depends(get_db)):
     
     return await SellerService.create_product(db, product)
 
