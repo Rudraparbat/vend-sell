@@ -102,13 +102,13 @@ class SellerService :
             raise HTTPException(status_code= 500 , detail= str(e))
         
     @staticmethod
-    async def create_product(db: Session, product: ProductBase):
+    async def create_product(db: Session, product: List[ProductBase]):
         try :
-            db_product = Product(**product.dict())
-            db.add(db_product)
+            product_dicts = [products.dict() for products in product]
+
+            db.bulk_insert_mappings(Product, product_dicts)
             db.commit()
-            db.refresh(db_product)
-            return db_product
+            return {"status": "success", "inserted": len(product_dicts)}
         
         except SQLAlchemyError as db_error:
             db.rollback()
