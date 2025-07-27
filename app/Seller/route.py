@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status , Response , Reque
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.Seller.schema import LocationSchema, SellerCreate, SellerProfileSchema, SellerResponse, FactoryCreate, FactoryResponse, LocationCreate, LocationResponse, ProductBase, ProductResponse, SellerSearchSchemaResponse, Token
-from app.Seller.service import  SellerService
+from app.Seller.service import  SellerOrderService, SellerService
 from typing import List, Optional
 from app.Utils.database import get_db  
 from app.Utils.authservice import get_current_user
@@ -58,3 +58,9 @@ async def seller_search_by_loc(loc : LocationSchema , db: Session = Depends(get_
 async def seller_search_by_default(loc : LocationSchema , db: Session = Depends(get_db) ,city : Optional[str] = None):
    
     return await SellerService.get_all_sellers_for_city(db , loc , city) 
+
+
+@seller_router.post("/placed-orders/", status_code=200)
+async def placed_order_for_seller(db: Session = Depends(get_db) , vendor = Depends(get_current_user)):
+   
+    return await SellerOrderService.my_orders(db , vendor) 
