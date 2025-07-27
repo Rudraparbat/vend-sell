@@ -3,7 +3,7 @@ from datetime import timedelta
 from math import radians
 
 from sqlalchemy import func
-from app.Seller.models import Seller
+from app.Seller.models import Factory, Product, Seller
 from app.Vendor.models import *
 from app.Vendor.schema import *
 from sqlalchemy.orm import Session
@@ -252,6 +252,176 @@ class VendorAuthService :
         except Exception as e :
             raise HTTPException(status_code= 500 , detail= str(e))
         
-    
 
-        
+class VendorOrderService :
+
+    @staticmethod
+    async def place_order(order: CreateOrderSchema, db: Session, vendor):
+        try:
+            # Validate vendor
+            if vendor is None:
+                raise HTTPException(status_code=400, detail="Error in User Details")
+            
+            vendor_detail = db.query(Vendoruser).filter(Vendoruser.email == vendor.email).first()
+            if not vendor_detail:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Vendor Not Found"
+                )
+            
+            # Validate seller exists
+            seller = db.query(Seller).filter(Seller.id == order.seller_id).first()
+            if not seller:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Seller Not Found"
+                )
+            
+            # Validate factory exists
+            factory = db.query(Factory).filter(Factory.id == order.factory_id).first()
+            if not factory:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Factory Not Found"
+                )
+            
+            # Validate ordered products
+            if not order.ordered_products or len(order.ordered_products) == 0:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="At least one product must be ordered"
+                )
+            
+            # Extract product IDs from ordered products
+            product_ids = [product.product_id for product in order.ordered_products]
+            
+            # Validate all products exist
+            products = db.query(Product).filter(Product.id.in_(product_ids)).all()
+            if len(products) != len(product_ids):
+                existing_product_ids = [p.id for p in products]
+                missing_product_ids = [pid for pid in product_ids if pid not in existing_product_ids]
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Products with IDs {missing_product_ids} not found"
+                )
+            
+            # Validate quantities are positive
+            for product_detail in order.ordered_products:
+                if product_detail.quantity <= 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Quantity must be positive for product ID {product_detail.product_id}"
+                    )
+                if product_detail.total_price <= 0:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Total price must be positive for product ID {product_detail.product_id}"
+                    )
+            
+            # Calculate and validate total amounts
+            calculated_product_amount = sum([product.total_price for product in order.ordered_products])
+            calculated_total = calculated_product_amount + order.platform_fee
+            
+            # # Optional: Validate if provided amounts match calculated amounts
+            # if abs(order.product_ammount - calculated_product_amount) > 0.01:  # Allow small floating point differences
+            #     raise HTTPException(
+            #         status_code=400,
+            #         detail=f"Product amount mismatch. Expected: {calculated_product_amount}, Provided: {order.product_ammount}"
+            #     )
+            
+            # Create the main order
+            db_order = PlaceOrder(
+                vendor_id=vendor_detail.id,
+                seller_id=order.seller_id,
+                factory_id=order.factory_id,
+                product_ammount=order.product_ammount,
+                platform_fee=order.platform_fee,
+                total_amount=calculated_total,
+                remarks=order.remarks
+            )
+            
+            db.add(db_order)
+            db.flush()  # Flush to get the order ID without committing
+            
+            # Create ordered product details
+            ordered_product_records = []
+            for product_detail in order.ordered_products:
+                db_product_detail = OrderedProductsDetail(
+                    product=product_detail.product_id,
+                    quantity=product_detail.quantity,
+                    total_price=product_detail.total_price,
+                    order_id=db_order.id
+                )
+                ordered_product_records.append(db_product_detail)
+                db.add(db_product_detail)
+            
+            # Commit all changes
+            db.commit()
+            db.refresh(db_order)
+            
+            # Return the complete order with products using the response schema
+            return db_order
+            
+        except SQLAlchemyError as db_error:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database error: {str(db_error)}"
+            )
+        except HTTPException as error:
+            db.rollback()
+            raise error
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error: {str(e)}"
+            )
+    @staticmethod
+    async def get_vendor_orders(
+        db: Session, 
+        vendor, 
+        order_status: Optional[OrderStatusEnum] = None
+    ):
+        try:
+            # Validate vendor
+            if vendor is None:
+                raise HTTPException(status_code=400, detail="Error in User Details")
+            
+            vendor_detail = db.query(Vendoruser).filter(Vendoruser.email == vendor.email).first()
+            if not vendor_detail:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Vendor Not Found"
+                )
+            
+            # Build query for vendor's orders
+            query = db.query(PlaceOrder).filter(PlaceOrder.vendor_id == vendor_detail.id)
+            
+            # Apply status filter if provided
+            if order_status:
+                query = query.filter(PlaceOrder.order_status == order_status)
+            
+            # Apply ordering (most recent first)
+            query = query.order_by(PlaceOrder.created_at.desc())
+            
+            # Apply pagination
+            orders = query.all()
+            
+            # Convert to response schema
+            
+            print(orders)
+            return orders
+            
+        except HTTPException as error:
+            raise error
+        except SQLAlchemyError as db_error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database error: {str(db_error)}"
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Unexpected error: {str(e)}"
+            )

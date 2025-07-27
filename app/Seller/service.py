@@ -1,6 +1,7 @@
 from cmath import acos, cos, sin
-from datetime import timedelta
+from datetime import date, timedelta
 from math import radians
+import random
 
 from sqlalchemy import func
 from app.Seller.models import *
@@ -16,7 +17,8 @@ from passlib.context import CryptContext
 import os
 from dotenv import load_dotenv
 
-from app.Vendor.models import Vendoruser
+from app.Utils.generate_invoice import generate_invoice_pdf
+from app.Vendor.models import OrderStatusEnum, PlaceOrder, Vendoruser
 load_dotenv()
 
 # Password hashing
@@ -279,3 +281,84 @@ class SellerService :
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
+
+class SellerOrderService :
+
+    @staticmethod
+    async def my_orders(db : Session , vendor) :
+        try :
+            vendor_detail  = db.query(Vendoruser).filter(Vendoruser.email == vendor.email).first()
+            if not vendor_detail:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Vendor Not Found"
+                )
+            seller_detail = db.query(Seller).filter(Seller.vendor_id == vendor_detail.id).first()
+
+            if not seller_detail :
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Seller Detail Not Found"
+                )
+            
+            fetch_orders = db.query(PlaceOrder).filter(
+                PlaceOrder.seller_id == seller_detail.id ,
+                PlaceOrder.order_status == OrderStatusEnum.PLACED
+            )
+
+            return fetch_orders.all()
+
+        except SQLAlchemyError as db_error:
+            raise HTTPException(status_code=500, detail=str(db_error))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+    async def accept_incoming_order(order_id : int , expected_delivery : date , db : Session , vendor)  :
+        try :
+            vendor_detail  = db.query(Vendoruser).filter(Vendoruser.email == vendor.email).first()
+            if not vendor_detail:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Vendor Not Found"
+                )
+            seller_detail = db.query(Seller).filter(Seller.vendor_id == vendor_detail.id).first()
+
+            if not seller_detail :
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Seller Detail Not Found"
+                )
+            
+            order_detail = db.query(PlaceOrder).filter(PlaceOrder.id == order_id).first()
+
+            if not order_detail :
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Order Detail Not Found"
+                )
+            
+            order_detail.order_status = OrderStatusEnum.CONFIRMED
+            order_detail.order_otp = random.randint(1000 , 999999)
+            order_detail.delivery_date = expected_delivery
+
+            db.commit()
+
+            file_path = f"invoice_order_{order_id}.pdf"
+            await generate_invoice_pdf(order_detail, file_path=file_path)
+
+            return {"message": "Order confirmed and invoice generated", "invoice_path": file_path}
+        except SQLAlchemyError as db_error:
+            raise HTTPException(status_code=500, detail=str(db_error))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
+
+    async def reject_incoming_order(order_id : int , db : Session , vendor) :
+        try :
+            pass
+
+        except SQLAlchemyError as db_error:
+            raise HTTPException(status_code=500, detail=str(db_error))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        

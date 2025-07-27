@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.Utils.authservice import get_current_user
 from app.Utils.database import get_db
 from app.Vendor.schema import *
-from app.Vendor.service import VendorAuthService, VendorService
+from app.Vendor.service import VendorAuthService, VendorOrderService, VendorService
 
 vendor_router = APIRouter()
 
@@ -36,3 +36,15 @@ async def get_profile(response : Response):
 @vendor_router.get("/vendor-status/")
 async def get_vendor_status(request : Request , db: Session = Depends(get_db)):
     return await VendorAuthService.vendor_status(db , request)
+
+@vendor_router.post("/placeorder/")
+async def place_order(order: CreateOrderSchema,  db: Session = Depends(get_db),  vendor = Depends(get_current_user)):
+    return await VendorOrderService.place_order(order, db, vendor)
+
+@vendor_router.get("/orders/", response_model=List[PlaceOrderSchema])
+async def get_my_orders(
+    db: Session = Depends(get_db),
+    vendor = Depends(get_current_user),
+    order_status: Optional[OrderStatusEnum] = Query(None, description="Filter by order status")
+):
+    return await VendorOrderService.get_vendor_orders(db, vendor, order_status)
