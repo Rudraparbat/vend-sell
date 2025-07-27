@@ -9,15 +9,15 @@ class Seller(Base):
     __tablename__ = "sellers"
     
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    vendor_id = Column(Integer , ForeignKey('vendoruser.id') , nullable=False)
     email = Column(String, unique=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
     phone = Column(String(10), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     factories = relationship("Factory", back_populates="seller")
     products = relationship("Product", back_populates="seller")
+    vendor = relationship("Vendoruser")
 
 class FactoryTypeEnum(str , Enum) :
     FACTORY = "factory"

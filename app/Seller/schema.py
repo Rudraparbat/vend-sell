@@ -43,18 +43,15 @@ class FactoryResponse(FactoryBase):
         from_attributes = True
 
 class SellerBase(BaseModel):
-    name: str
     email: EmailStr
-    hashed_password : str
     phone: str
 
 class SellerCreate(SellerBase):
     pass
 
-class SellerResponse(BaseModel):
+class SellerResponse(SellerBase):
     id: int
-    loginid : EmailStr
-    password : str
+    vendor_id : int
     created_at: datetime
     factories: List[FactoryResponse] = []
     products: List["ProductResponse"] = []
@@ -93,14 +90,22 @@ class TokenData(BaseModel) :
     class Config :
         from_attributes = True
 
-
-class SellerProfileSchema(BaseModel) :
+class VendorDetailSchema(BaseModel) :
     id : int
     name : str
     email : EmailStr
     phone : str
+
+    class Config :
+        from_attributes = True
+
+class SellerProfileSchema(BaseModel) :
+    id : int
+    email : EmailStr
+    phone : str
     factories : Optional[List[FactoryResponse]] = []
     products : Optional[List[ProductResponse]] = []
+    vendor : VendorDetailSchema
 
     class Config :
         from_attributes = True
