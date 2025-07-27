@@ -15,6 +15,8 @@ from geopy.geocoders import Nominatim
 from passlib.context import CryptContext
 import os
 from dotenv import load_dotenv
+
+from app.Vendor.models import Vendoruser
 load_dotenv()
 
 # Password hashing
@@ -30,29 +32,28 @@ TIMELIMIT = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 class SellerService :
 
     @staticmethod
-    async def create_seller(db: Session, seller: SellerCreate):
+    async def create_seller(db: Session, seller: SellerCreate , vendor):
         try :
             db_user = db.query(Seller).filter(Seller.email == seller.email).first()
             if db_user:
                 raise HTTPException(status_code=400, detail="Email already registered")
             
+            vendor_detail  = db.query(Vendoruser).filter(Vendoruser.email == vendor.email).first()
+            if not vendor_detail:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Vendor Not Found"
+                )
+            
             seller_dict = seller.dict()
-            seller_dict["hashed_password"] = await SellerAuthService.get_password_hash(seller.hashed_password)
+            seller_dict["vendor_id"] = vendor_detail.id
 
             db_seller = Seller(**seller_dict)
             db.add(db_seller)
             db.commit()
             db.refresh(db_seller)
 
-            return SellerResponse(
-                id = db_seller.id , 
-                loginid =  db_seller.email , 
-                password =  seller.hashed_password , 
-                created_at = db_seller.created_at , 
-                factories = db_seller.factories, 
-                products = db_seller.products
-            )
-        
+            return db_seller
         except SQLAlchemyError as db_error:
             db.rollback()
             raise db_error
@@ -153,14 +154,14 @@ class SellerService :
         
     
     @staticmethod
-    async def get_product_list_for_seller( db: Session , seller : TokenData):
+    async def get_product_list_for_seller( db: Session , vendor : TokenData):
         try :
-            seller_data = db.query(Seller).filter(Seller.email == seller.email).first()
-            if not seller_data :
+            vendor_data = db.query(Vendoruser).filter(Seller.email == vendor.email).first()
+            if not vendor_data :
                 raise HTTPException(status_code= 400 , detail="Seller Data Not Found")
-
-            products = db.query(Product).filter(Product.seller_id == seller_data.id).all()
-            return products
+            
+            seller_data = db.query(Seller).filter(Seller.vendor_id == vendor_data.id).first()
+            return seller_data.products
         
         except SQLAlchemyError as db_error:
             raise HTTPException(status_code=500, detail=str(db_error))
@@ -168,12 +169,14 @@ class SellerService :
             raise HTTPException(status_code=500, detail=str(e))
         
     @staticmethod
-    async def get_seller_profile(db: Session , seller : TokenData) :
+    async def get_seller_profile(db: Session , vendor : TokenData) :
         try :
-            seller_data = db.query(Seller).filter(Seller.email == seller.email).first()
-            if not seller_data :
+            vendor_data = db.query(Vendoruser).filter(Vendoruser.email == vendor.email).first()
+            if not vendor_data :
                 raise HTTPException(status_code= 400 , detail="Seller Data Not Found")
             
+            seller_data = db.query(Seller).filter(Seller.vendor_id == vendor_data.id).first()
+
             return seller_data
         except SQLAlchemyError as db_error:
             raise HTTPException(status_code=500, detail=str(db_error))
@@ -276,58 +279,3 @@ class SellerService :
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-
-        
-
-            
-
-       
-class SellerAuthService :
-
-    @staticmethod
-    def verify_password(plain_password, hashed_password):
-        return pwd_context.verify(plain_password, hashed_password)
-
-    @staticmethod
-    async def get_password_hash(password):
-        return pwd_context.hash(password)
-
-    @staticmethod
-    async def create_access_token(data: dict):
-        
-        to_encode = data.copy()
-        expire = datetime.utcnow() + timedelta(minutes=int(TIMELIMIT))
-        to_encode.update({"exp": expire})
-        encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-        return encoded_jwt
-    
-    @staticmethod
-    async def set_cookies(token , max_age , response) :
-
-        response.set_cookie(
-        key="access_token",
-        value=str(token),
-        httponly=True,          
-        secure=True,           
-        samesite="None",         
-        max_age=max_age    
-    )
-
-    
-    @staticmethod
-    async def authenticate_user(db: Session, email: str, password: str , response):
-        user = db.query(Seller).filter(Seller.email == email).first()
-        print(SellerAuthService.verify_password(password, user.hashed_password))
-        if not user or not SellerAuthService.verify_password(password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        
-        access_token = await SellerAuthService.create_access_token(data={"mail": user.email, "name": user.name})
-        await SellerAuthService.set_cookies(access_token ,60*30 , response)
-        return {"access_token": access_token, "token_type": "bearer"}
-    
-
-    
