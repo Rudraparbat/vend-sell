@@ -3,6 +3,7 @@ from datetime import timedelta
 from math import radians
 
 from sqlalchemy import func
+from app.Seller.models import Seller
 from app.Vendor.models import *
 from app.Vendor.schema import *
 from sqlalchemy.orm import Session
@@ -226,14 +227,28 @@ class VendorAuthService :
         try :
             token = request.cookies.get("access_token")  
             print(token)
-            is_login = True
-            if token is None:
-                is_login = False
+            is_login = False
+            is_Seller = False
+
+            if token :
+                is_login = True
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                email = payload.get("mail")
+
+                vendor_detail  = db.query(Vendoruser).filter(Vendoruser.email == email).first()
+
+                seller_detail = db.query(Seller).filter(Seller.vendor_id == vendor_detail.id).first() 
+
+                if seller_detail :
+                    is_Seller = True
+
 
             return VendorStatusSChema(
-                is_login = is_login
+                is_login = is_login , 
+                is_seller = is_Seller
             )        
-        
+        except JWTError as error :
+            raise error
         except Exception as e :
             raise HTTPException(status_code= 500 , detail= str(e))
         

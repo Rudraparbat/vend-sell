@@ -77,6 +77,7 @@ class VendorUserResponse(BaseModel):
 
 class VendorStatusSChema(BaseModel) :
     is_login : bool
+    is_seller : bool
 
     class Config :
         from_attributes = True
