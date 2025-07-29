@@ -22,7 +22,7 @@ allow_origin = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origin,   # ✅ No trailing slashes
+    allow_origins=["*"],   # ✅ No trailing slashes
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
