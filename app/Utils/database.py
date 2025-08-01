@@ -7,11 +7,13 @@ load_dotenv()
 
 # Defining Database url
 
-DB_URL = "sqlite:///./app.db"
+DB_URL = os.getenv("DATABASE_URL")
+
+connect_args = {"check_same_thread": False} if DB_URL.startswith("sqlite") else {}
 
 # initilizing engine
 
-engine = create_engine(DB_URL , connect_args={"check_same_thread": False})
+engine = create_engine(DB_URL , connect_args=connect_args)
 
 # initializing session
 

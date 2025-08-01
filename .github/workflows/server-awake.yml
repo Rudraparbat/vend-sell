@@ -1,0 +1,17 @@
+name: Keep Render Backend Awake
+
+# Controls when the workflow will run
+on:
+  schedule:
+    # Runs every 10 minutes (GitHub's minimum is 5 minutes)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
+
+# Jobs to run
+jobs:
+  ping-server:
+    runs-on: ubuntu-latest
+    steps:
+      # Step to send a GET request to your Render backend
+      - name: Send GET Request to Render
+        run: curl -X GET https://vend-sell.onrender.com
