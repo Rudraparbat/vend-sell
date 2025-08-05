@@ -227,25 +227,74 @@ class VendorAuthService :
         try :
             token = request.cookies.get("access_token")  
             print(token)
+
+            # for profile details
             is_login = False
+            profile_dones = 0
+            profile_creds = []
+
+            # for seller details 
             is_Seller = False
+            seller_profile_dones = 0
+            seller_profile_creds  = []
+
+            profile_count = 0
+            seller_profile_count = 0
 
             if token :
                 is_login = True
+                profile_count += 1
                 payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
                 email = payload.get("mail")
 
                 vendor_detail  = db.query(Vendoruser).filter(Vendoruser.email == email).first()
 
+                # add vendor details data
+                if vendor_detail.shops :
+                    profile_count += 1
+                else :
+                    profile_creds.append("shop")
+
+                if vendor_detail.locations :
+                    profile_count += 1
+                else :
+                    profile_creds.append("location")
+                
+                profile_dones = (profile_count / 3 ) * 100
+                
                 seller_detail = db.query(Seller).filter(Seller.vendor_id == vendor_detail.id).first() 
 
                 if seller_detail :
+                    seller_profile_count += 1
                     is_Seller = True
 
+                    if seller_detail.factories :
+                        seller_profile_count += 1
+                        if seller_detail.factories.location :
+                            seller_profile_count += 1
+
+                        else :
+                            seller_profile_creds.append("location")
+                    else :
+                        seller_profile_creds.append("factories")
+                        seller_profile_creds.append("location")
+
+                    if seller_detail.products :
+                        seller_profile_count += 1
+                    else :
+                        seller_profile_creds.append("products")
+
+                    
+                    seller_profile_dones = (seller_profile_count / 4) * 100
+                
 
             return VendorStatusSChema(
-                is_login = is_login , 
-                is_seller = is_Seller
+                is_login = is_login ,   # TO check if the user is log in or not
+                is_seller = is_Seller,  # To check the user have seller account or not
+                profile_done =  int(profile_dones),  # if have account how much the account creation is done 
+                profile_creds =  profile_creds ,  # which part of the profile creation are pending
+                seller_profile_done = int(seller_profile_dones) , # How much seller account creation is done
+                seller_profile_creds = seller_profile_creds     # which part of the seller profile creation is pending
             )        
         except JWTError as error :
             raise error

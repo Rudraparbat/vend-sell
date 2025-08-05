@@ -80,7 +80,10 @@ class VendorUserResponse(BaseModel):
 class VendorStatusSChema(BaseModel) :
     is_login : bool
     is_seller : bool
-
+    profile_done : int
+    profile_creds : Optional[List] = []
+    seller_profile_done : int
+    seller_profile_creds : Optional[List] = []
     class Config :
         from_attributes = True
 
