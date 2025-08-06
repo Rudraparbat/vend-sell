@@ -268,14 +268,13 @@ class VendorAuthService :
                     seller_profile_count += 1
                     is_Seller = True
 
-                    if seller_detail.factories :
+                    if seller_detail.factories:
                         seller_profile_count += 1
-                        if seller_detail.factories.location :
+                        if all(factory.location for factory in seller_detail.factories):
                             seller_profile_count += 1
-
-                        else :
+                        else:
                             seller_profile_creds.append("location")
-                    else :
+                    else:
                         seller_profile_creds.append("factories")
                         seller_profile_creds.append("location")
 
