@@ -1,20 +1,31 @@
 # Use slim image for a smaller footprint
 FROM python:3.13.2-slim-bookworm
 
-
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy the rest of the application
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
 COPY . .
 
-RUN pip install --no-cache-dir -r requirements.txt  
+# Copy migration files
+COPY alembic/ ./alembic/
+COPY alembic.ini .
 
+# Make startup script executable
+COPY start.sh .
+RUN chmod +x start.sh
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-
-# Expose the application port
+# Expose port
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port 8000 --reload"]
+# Use startup script instead of direct uvicorn
+CMD ["./start.sh"]

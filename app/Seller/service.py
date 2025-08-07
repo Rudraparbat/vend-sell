@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from math import radians
 import random
 
-from sqlalchemy import func
+from sqlalchemy import case, func, text
 from app.Seller.models import *
 from app.Seller.schema import *
 from sqlalchemy.orm import Session
@@ -185,58 +185,55 @@ class SellerService :
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         
-    @staticmethod
-    async def get_city_from_latlon(lat, lon):
-        geolocator = Nominatim(user_agent="vendor_locator")
-        location = geolocator.reverse((lat, lon), exactly_one=True)
-        return location.raw.get("address", {}).get("city", "")
-    
-    @staticmethod
-    @staticmethod
-    def haversine_sql_expr(user_lat, user_lon):
-        return (
-            6371 * func.acos(
-                func.cos(func.radians(user_lat)) * func.cos(func.radians(Location.latitude)) *
-                func.cos(func.radians(Location.longitude) - func.radians(user_lon)) +
-                func.sin(func.radians(user_lat)) * func.sin(func.radians(Location.latitude))
-            )
-        )
         
     @staticmethod
     async def get_nearby_sellers(db : Session , loc : LocationSchema ) :
         try :
-            city = await SellerService.get_city_from_latlon(loc.latitude , loc.longtitude)
-
-            if not city:
-                raise HTTPException(status_code=400 , detail="Cant Locate Your City Currently")
             
-            db.connection().connection.create_function("radians", 1, radians)
-            db.connection().connection.create_function("cos", 1, cos)
-            db.connection().connection.create_function("sin", 1, sin)
-            db.connection().connection.create_function("acos", 1, acos)
+            # KNN Algorithmic query to find nearby sellers , within logn time
+            query = text("""
+                    SELECT DISTINCT ON (s.id)
+                        s.id as seller_id,
+                        ST_Distance(
+                            l.location::geography, 
+                            ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+                        ) / 1000 as min_distance_km
+                    FROM sellers s
+                    JOIN factories f ON s.id = f.seller_id
+                    JOIN locations l ON f.id = l.factory_id
+                    WHERE l.location IS NOT NULL
+                    ORDER BY s.id, l.location <-> ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)
+                    LIMIT :limit
+                """)
 
-            # Haversine expression
-            distance_expr =  SellerService.haversine_sql_expr(loc.latitude, loc.longtitude).label("distance_km")
 
+    
+            result = db.execute(query, {
+                'latitude': loc.latitude,
+                'longitude': loc.longtitude,
+                'limit': 20
+            })
             
-            query = (
-                db.query(
-                    Seller,
-                    distance_expr
-                )
-                .join(Factory, Factory.seller_id == Seller.id)
-                .join(Location, Location.factory_id == Factory.id)
-                .filter(Location.city == city)
-                .filter(distance_expr <= 5.0)
-                .order_by(distance_expr.asc())
-            )
+            seller_data = result.fetchall()
 
-            sellers = query.all()
-            print(sellers)
+            # utilize those seller datas 
+            sellers_ids = [ids[0] for ids in seller_data]
+
+            distance_map = {ids[0]: ids[1] for ids in seller_data}
+
+            whens = [(Seller.id == sid, i) for i, sid in enumerate(sellers_ids)]
+        
+            sellers = db.query(Seller)\
+                .filter(Seller.id.in_(sellers_ids))\
+                .order_by(case(*whens, else_=999))\
+                .all() 
 
             return [
-                SellerSearchSchemaResponse(seller=seller, distance=distance)
-                for seller, distance in sellers
+                SellerSearchSchemaResponse(
+                    seller = seller ,
+                    distance = distance_map.get(seller.id)
+                )
+                for seller in sellers
             ]
         except SQLAlchemyError as db_error:
             raise HTTPException(status_code=500, detail=str(db_error))
