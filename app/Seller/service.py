@@ -216,6 +216,9 @@ class SellerService :
             
             seller_data = result.fetchall()
 
+            if not seller_data:
+                return []
+
             # utilize those seller datas 
             sellers_ids = [ids[0] for ids in seller_data]
 
