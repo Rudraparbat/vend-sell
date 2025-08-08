@@ -192,26 +192,60 @@ class SellerService :
             
             # KNN Algorithmic query to find nearby sellers , within logn time
             query = text("""
-                    SELECT DISTINCT ON (s.id)
-                        s.id as seller_id,
-                        ST_Distance(
-                            l.location::geography, 
-                            ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
-                        ) / 1000 as min_distance_km
-                    FROM sellers s
-                    JOIN factories f ON s.id = f.seller_id
-                    JOIN locations l ON f.id = l.factory_id
-                    WHERE l.location IS NOT NULL
-                    ORDER BY s.id, l.location <-> ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)
-                    LIMIT :limit
-                """)
+            WITH filtered_locations AS (
+                SELECT 
+                    l.id,
+                    l.factory_id,
+                    l.latitude,
+                    l.longitude,
+                    l.address_line1,
+                    l.city,
+                    l.state,
+                    l.country,
+                    l.location,
+                    ST_Distance(
+                        l.location::geography, 
+                        ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+                    ) / 1000 as distance_km
+                FROM locations l
+                WHERE l.location IS NOT NULL
+                AND ST_DWithin(
+                    l.location::geography,
+                    ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
+                    :radius_meters
+                )
+                ORDER BY l.location <-> ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)
+                LIMIT :expanded_limit
+            ),
+            seller_results AS (
+                SELECT DISTINCT ON (s.id)
+                    s.id as seller_id,
+                    s.email as seller_name,
+                    f.id as factory_id,
+                    f.name as factory_name,
+                    fl.latitude as factory_latitude,
+                    fl.longitude as factory_longitude,
+                    fl.address_line1,
+                    fl.city,
+                    fl.state,
+                    fl.country,
+                    fl.distance_km
+                FROM filtered_locations fl
+                JOIN factories f ON fl.factory_id = f.id
+                JOIN sellers s ON f.seller_id = s.id
+                ORDER BY s.id, fl.distance_km
+            )
+            SELECT * FROM seller_results 
+            ORDER BY distance_km
+            LIMIT :final_limit
+        """)
 
-
-    
             result = db.execute(query, {
                 'latitude': loc.latitude,
                 'longitude': loc.longtitude,
-                'limit': 20
+                'radius_meters': 500000,  # 500km radius
+                'expanded_limit': 200,   # Get more locations initially
+                'final_limit': 20        # Final seller limit
             })
             
             seller_data = result.fetchall()
@@ -219,25 +253,33 @@ class SellerService :
             if not seller_data:
                 return []
 
-            # utilize those seller datas 
-            sellers_ids = [ids[0] for ids in seller_data]
-
-            distance_map = {ids[0]: ids[1] for ids in seller_data}
-
-            whens = [(Seller.id == sid, i) for i, sid in enumerate(sellers_ids)]
-        
-            sellers = db.query(Seller)\
-                .filter(Seller.id.in_(sellers_ids))\
-                .order_by(case(*whens, else_=999))\
-                .all() 
-
-            return [
-                SellerSearchSchemaResponse(
-                    seller = seller ,
-                    distance = distance_map.get(seller.id)
+            validated_results = []
+            for row in seller_data:
+                # Create factory location object
+                factory_location = FactoryLocationSchema(
+                    latitude=row.factory_latitude,
+                    longitude=row.factory_longitude,
+                    address_line1=row.address_line1,
+                    city=row.city,
+                    state=row.state,
+                    country=row.country,
+                    full_address=f"{row.address_line1}, {row.city}, {row.state}, {row.country}"
                 )
-                for seller in sellers
-            ]
+                
+                # Create seller response object
+                seller_response = NearbySellerResponseSchema(
+                    seller_id=row.seller_id,
+                    seller_name=row.seller_name,
+                    factory_id=row.factory_id,
+                    factory_name=row.factory_name,
+                    distance=row.distance_km,
+                    factory_location=factory_location
+                )
+                
+                validated_results.append(seller_response)
+        
+            return validated_results
+            
         except SQLAlchemyError as db_error:
             raise HTTPException(status_code=500, detail=str(db_error))
         except Exception as e:
