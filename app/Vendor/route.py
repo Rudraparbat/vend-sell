@@ -30,8 +30,8 @@ async def login_vendor(response : Response , form_data: OAuth2PasswordRequestFor
     return await VendorAuthService.authenticate_user(db, form_data.username, form_data.password , response)
 
 @vendor_router.post("/oauth/login", status_code=status.HTTP_200_OK)
-async def login_vendor(request  : Request , response : Response):
-    return await VendorAuthService.google_auth_service(request , response)
+async def login_vendor(request  : Request , code : OauthCode):
+    return await VendorAuthService.google_auth_service(request , code)
 
 @vendor_router.post("/logout/")
 async def get_profile(response : Response):
