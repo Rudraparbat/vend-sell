@@ -102,6 +102,8 @@ class OrderdProductResponse(OrderedProductSchema) :
     class Config:
         from_attributes = True
 
+class OauthCode(BaseModel) :
+    code : str
 
 
 class PlaceOrderSchema(BaseModel):

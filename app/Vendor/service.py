@@ -8,15 +8,14 @@ from app.Seller.models import Factory, Product, Seller
 from app.Vendor.models import *
 from app.Vendor.schema import *
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, Request, Response, requests, status 
+from fastapi import HTTPException, Request, Response, status 
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from math import radians, cos, sin, acos
-from geopy.geocoders import Nominatim
 from passlib.context import CryptContext
 import os
 from dotenv import load_dotenv
+import requests
 load_dotenv()
 
 
@@ -221,10 +220,8 @@ class VendorAuthService :
             
     # Google Auth For Sign Up
     @staticmethod
-    async def google_auth_service(request : Request , response : Response) :
+    async def google_auth_service(request : Request , code : OauthCode) :
         try :
-            body = await request.json()
-            code = body.get("code")
             if not code:
                 return JSONResponse({"error": "Missing code"}, status_code=400)
 
