@@ -29,6 +29,10 @@ async def get_profile(db: Session = Depends(get_db) , vendor = Depends(get_curre
 async def login_vendor(response : Response , form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     return await VendorAuthService.authenticate_user(db, form_data.username, form_data.password , response)
 
+@vendor_router.post("/oauth/login", status_code=status.HTTP_200_OK)
+async def login_vendor(request  : Request , response : Response):
+    return await VendorAuthService.google_auth_service(request , response)
+
 @vendor_router.post("/logout/")
 async def get_profile(response : Response):
     return await VendorAuthService.logout(response)

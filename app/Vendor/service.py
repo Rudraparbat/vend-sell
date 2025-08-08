@@ -8,7 +8,7 @@ from app.Seller.models import Factory, Product, Seller
 from app.Vendor.models import *
 from app.Vendor.schema import *
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, Request, Response, status 
+from fastapi import HTTPException, Request, Response, requests, status 
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -219,7 +219,55 @@ class VendorAuthService :
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
             
-    
+    # Google Auth For Sign Up
+    @staticmethod
+    async def google_auth_service(request : Request , response : Response) :
+        try :
+            body = await request.json()
+            code = body.get("code")
+            if not code:
+                return JSONResponse({"error": "Missing code"}, status_code=400)
+
+            # Exchange code for tokens
+            token_url = "https://oauth2.googleapis.com/token"
+            token_data = {
+                "code": code,
+                "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+                "client_secret": os.getenv("GOOGLE_CLIENT_SECRET"),
+                "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI"),
+                "grant_type": "authorization_code"
+            }
+            token_response = requests.post(token_url, data=token_data)
+            if not token_response.ok:
+                return JSONResponse({"error": "Token exchange failed"}, status_code=400)
+
+            tokens = token_response.json()
+            access_token = tokens.get("access_token")
+            if not access_token:
+                return JSONResponse({"error": "No access token"}, status_code=400)
+
+            # Fetch user info
+            userinfo_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+            userinfo_response = requests.get(
+                userinfo_url,
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            if not userinfo_response.ok:
+                return JSONResponse({"error": "Failed to fetch user info"}, status_code=400)
+
+            userinfo = userinfo_response.json()
+            print(userinfo)
+            return JSONResponse(userinfo)
+        
+        except HTTPException as http_error :
+            raise http_error
+        
+        except SQLAlchemyError as db_error :
+            raise db_error
+        
+        except Exception as e :
+            raise HTTPException(status_code=500 , detail= str(e))
+        
     @staticmethod
     async def vendor_status(db : Session , request : Request) :
         try :
