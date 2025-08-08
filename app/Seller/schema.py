@@ -125,6 +125,41 @@ class SellerSearchSchemaResponse(BaseModel) :
     class Config :
         from_attributes = True
 
+class FactoryLocationSchema(BaseModel):
+    """Schema for factory location details"""
+    latitude: float
+    longitude: float
+    address_line1: str
+    city: str
+    state: str
+    country: str
+    full_address: str
+
+    class Config:
+        from_attributes = True
+
+class NearbySellerResponseSchema(BaseModel):
+    """Schema for nearby seller response with factory location"""
+    seller_id: int
+    seller_name: str
+    factory_id: int
+    factory_name: str
+    distance: float
+    factory_location: FactoryLocationSchema
+
+    class Config:
+        from_attributes = True
+
+# For the complete response (list of sellers)
+from typing import List
+
+class NearbySellerListResponseSchema(BaseModel):
+    """Schema for list of nearby sellers"""
+    sellers: List[NearbySellerResponseSchema]
+    total_count: int
+    
+    class Config:
+        from_attributes = True
 
 # Enum for rating values (matching your SQLAlchemy enum)
 class RatingValue(int, Enum):
