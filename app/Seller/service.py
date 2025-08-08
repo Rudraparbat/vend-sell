@@ -223,6 +223,7 @@ class SellerService :
                     s.email as seller_name,
                     f.id as factory_id,
                     f.name as factory_name,
+                    f.factory_type as factory_types ,
                     fl.latitude as factory_latitude,
                     fl.longitude as factory_longitude,
                     fl.address_line1,
@@ -272,6 +273,7 @@ class SellerService :
                     seller_name=row.seller_name,
                     factory_id=row.factory_id,
                     factory_name=row.factory_name,
+                    # factory_type = row.factory_types,
                     distance=row.distance_km,
                     factory_location=factory_location
                 )

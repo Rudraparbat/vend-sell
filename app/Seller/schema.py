@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Optional, List
 from datetime import datetime
-from app.Seller.models import FactoryTypeEnum , QuantifiableTypeEnum
+from app.Seller.models import FactoryTypeEnum , QuantifiableTypeEnum , ShopCategoryEnum
 from pydantic import BaseModel, EmailStr, Field, validator
 
 
@@ -32,6 +32,7 @@ class FactoryBase(BaseModel):
     name: str
     factory_type: FactoryTypeEnum
     contact_number: Optional[str] = None
+    # shop_categories : List[ShopCategoryEnum]
 
 class FactoryCreate(FactoryBase):
     pass
@@ -144,6 +145,7 @@ class NearbySellerResponseSchema(BaseModel):
     seller_name: str
     factory_id: int
     factory_name: str
+    factory_type : str
     distance: float
     factory_location: FactoryLocationSchema
 
