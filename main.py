@@ -17,7 +17,8 @@ Base.metadata.create_all(bind=engine)
 # os.makedirs(os.getenv("UPLOAD_DIR"), exist_ok=True)
 allow_origin = [
     "http://localhost:5173",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://supplylink.vercel.app"
 ]
 
 app.add_middleware(

@@ -2,6 +2,7 @@ from cmath import acos, cos, sin
 from datetime import timedelta
 from math import radians
 
+from fastapi.responses import JSONResponse
 from sqlalchemy import func
 from app.Seller.models import Factory, Product, Seller
 from app.Vendor.models import *
@@ -211,16 +212,13 @@ class VendorAuthService :
         """
         Logs out the vendor by clearing the authentication cookie.
         """
-        try :
-            response.delete_cookie(key="access_token")
-            return {
-                "Status" : True ,
-                "Message" : "User Logged Out Sucessfully"
-            }
-        
-        except Exception as e :
-            raise HTTPException(status_code= 500 , detail= str(e))
-        
+        try:
+            response = JSONResponse(content={"Status": True, "Message": "User Logged Out Successfully"})
+            response.delete_cookie(key="access_token", path="/", secure=True, samesite="none")
+            return response
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+            
     
     @staticmethod
     async def vendor_status(db : Session , request : Request) :
