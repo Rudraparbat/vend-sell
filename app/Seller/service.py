@@ -3,10 +3,10 @@ from datetime import date, timedelta
 from math import radians
 import random
 
-from sqlalchemy import case, func, text
+from sqlalchemy import case, func, select, text
 from app.Seller.models import *
 from app.Seller.schema import *
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from fastapi import HTTPException, status 
 from sqlalchemy.exc import SQLAlchemyError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -185,6 +185,58 @@ class SellerService :
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         
+    @staticmethod
+    async def get_seller_factory_details(db: Session , factory_id : int) :
+        try :
+            query = (
+                select(Factory)
+                .options(
+                    joinedload(Factory.seller).joinedload(Seller.vendor),
+            # Location is one-to-one, so joinedload is perfect
+                    joinedload(Factory.location),
+                )
+                .where(Factory.id == factory_id)
+            )
+            
+            factory = db.execute(query).unique().scalar_one_or_none()
+            
+            if not factory:
+                raise HTTPException(status_code=400 ,detail="Factory With This Id Doesnt Exist")
+            
+            # Filter products to only include those from this specific factory
+            products_query = (
+                select(Product)
+                .where(Product.factory_id == factory_id)
+            )
+            
+            factory_products = db.execute(products_query).scalars().all()
+            
+            # Construct response
+            feature_seller = FeatureSeller(
+                id=factory.seller.id,
+                email=factory.seller.email,
+                phone=factory.seller.phone,
+                vendor=factory.seller.vendor
+            )
+            
+            feature_factory = FeatureFactory(
+                id=factory.id,
+                location=[factory.location] if factory.location else [],
+                products=factory_products
+            )
+            
+            return SellerFactoryDetailResponse(
+                seller=feature_seller,
+                factory=feature_factory
+            )
+
+        except HTTPException as http_error :
+            raise http_error
+        except SQLAlchemyError as db_error:
+            raise HTTPException(status_code=500, detail=str(db_error))
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+        
         
     @staticmethod
     async def get_nearby_sellers(db : Session , loc : LocationSchema ) :
@@ -223,6 +275,7 @@ class SellerService :
                     s.email as seller_name,
                     f.id as factory_id,
                     f.name as factory_name,
+                    f.factory_type as factory_types ,
                     fl.latitude as factory_latitude,
                     fl.longitude as factory_longitude,
                     fl.address_line1,
@@ -272,6 +325,7 @@ class SellerService :
                     seller_name=row.seller_name,
                     factory_id=row.factory_id,
                     factory_name=row.factory_name,
+                    # factory_type = row.factory_types,
                     distance=row.distance_km,
                     factory_location=factory_location
                 )

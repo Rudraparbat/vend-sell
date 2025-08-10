@@ -1,5 +1,6 @@
 from enum import Enum
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime , Enum as SqlEnum, Text
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, Column, Integer, String, Float, ForeignKey, DateTime , Enum as SqlEnum, Text
 from sqlalchemy.orm import relationship
 from app.Utils.database import Base
 from datetime import datetime
@@ -49,6 +50,17 @@ class FactoryTypeEnum(str , Enum) :
     SHOP = "shop"
     WAREHOUSE = "warehouse"
 
+class ShopCategoryEnum(str, Enum):
+    ELECTRONICS = "electronics"
+    GROCERY = "grocery"
+    CLOTHING = "clothing"
+    PHARMACY = "pharmacy"
+    TOYS = "toys"
+    FURNITURE = "furniture"
+    SPORTS = "sports"
+    BOOKS = "books"
+    BEAUTY = "beauty"
+    AUTOMOTIVE = "automotive"
 
 class Factory(Base):
     __tablename__ = "factories"
@@ -58,7 +70,7 @@ class Factory(Base):
     name = Column(String, nullable=False)
     factory_type = Column(SqlEnum(FactoryTypeEnum), nullable=False)  # e.g., 'factory', 'shop', 'warehouse'
     contact_number = Column(String(10) , nullable=False)
-    
+    # shop_categories = Column(JSONB, nullable=False, default=[])
     # Relationships
     seller = relationship("Seller", back_populates="factories")
     location = relationship("Location", back_populates="factory", uselist=False)
