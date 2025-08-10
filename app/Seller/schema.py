@@ -112,6 +112,32 @@ class SellerProfileSchema(BaseModel) :
     class Config :
         from_attributes = True
 
+class FeatureSeller(BaseModel) :
+    id : int
+    email : EmailStr
+    phone : str
+    vendor : VendorDetailSchema
+
+    class Config :
+        from_attributes = True
+
+class FeatureFactory(BaseModel) :
+    id: int
+    location: Optional[List[LocationResponse]] = []
+    products : Optional[List[ProductResponse]] = []
+
+    class Config :
+        from_attributes = True
+
+
+
+class SellerFactoryDetailResponse(BaseModel) :
+    seller : FeatureSeller
+    factory : FeatureFactory
+
+    class Config :
+        from_attributes = True
+
     
 
 class LocationSchema(BaseModel) :
