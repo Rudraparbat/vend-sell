@@ -325,7 +325,7 @@ class SellerService :
                     seller_name=row.seller_name,
                     factory_id=row.factory_id,
                     factory_name=row.factory_name,
-                    # factory_type = row.factory_types,
+                    factory_type = row.factory_types,
                     distance=row.distance_km,
                     factory_location=factory_location
                 )
