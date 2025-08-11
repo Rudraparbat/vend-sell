@@ -53,6 +53,8 @@ class FactoryTypeEnum(str , Enum) :
 class ShopCategoryEnum(str, Enum):
     ELECTRONICS = "electronics"
     GROCERY = "grocery"
+    POLTRY = "poltry"
+    FLOWER = "flower"
     CLOTHING = "clothing"
     PHARMACY = "pharmacy"
     TOYS = "toys"
@@ -70,7 +72,7 @@ class Factory(Base):
     name = Column(String, nullable=False)
     factory_type = Column(SqlEnum(FactoryTypeEnum), nullable=False)  # e.g., 'factory', 'shop', 'warehouse'
     contact_number = Column(String(10) , nullable=False)
-    # shop_categories = Column(JSONB, nullable=False, default=[])
+    shop_categories = Column(JSONB, nullable=True, default=[])
     # Relationships
     seller = relationship("Seller", back_populates="factories")
     location = relationship("Location", back_populates="factory", uselist=False)
