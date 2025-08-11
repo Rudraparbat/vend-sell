@@ -1,5 +1,6 @@
 from cmath import acos, cos, sin
 from datetime import date, timedelta
+import json
 from math import radians
 import random
 
@@ -33,6 +34,45 @@ ALGORITHM = os.getenv("ALGORITHM")
 TIMELIMIT = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 class SellerService :
+    @staticmethod
+    async def get_states() :
+        try :
+            with open("static/city.json" , 'r') as file :
+                json_struct = file.read()
+
+            state_dict = json.loads(json_struct)
+
+            return StateResponseSchema(states = list(state_dict.keys()))
+
+        except HTTPException as httperror :
+            raise httperror
+        except Exception as e :
+            raise HTTPException(status_code= 500 , detail= str(e))
+        
+    @staticmethod
+    async def get_cities_by_state(state) :
+        try :
+            with open("static/city.json" , 'r') as file :
+                json_struct = file.read()
+
+            state_dict = json.loads(json_struct)
+
+            if state:
+                cities = state_dict.get(state, [])
+            else:
+                # Flatten all cities from all states into a single list
+                cities = []
+                for city_list in state_dict.values():
+                    if isinstance(city_list, list):
+                        cities.extend(city_list)
+
+            return CityResponseSchema(cities=cities)
+
+        except HTTPException as httperror :
+            raise httperror
+        except Exception as e :
+            raise HTTPException(status_code= 500 , detail= str(e))
+
 
     @staticmethod
     async def create_seller(db: Session, seller: SellerCreate , vendor):
@@ -242,9 +282,28 @@ class SellerService :
     @staticmethod
     async def get_nearby_sellers(db : Session , loc : LocationSchema ) :
         try :
+
+            min_radius_meters = loc.min_distance_km * 1_000
+            max_radius_meters = loc.max_distance_km * 1_000
+
+            location_filters = ["l.location IS NOT NULL"]
+
+            if loc.city:
+                location_filters.append("LOWER(l.city) = LOWER(:city)")
             
+            # Distance filter using ST_DWithin for efficient spatial index usage
+            location_filters.append("""
+                ST_DWithin(
+                    l.location::geography,
+                    ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
+                    :max_radius_meters
+                )
+            """)
+
+            location_where = " AND ".join(location_filters)
+            expanded_limit = min(200, max(50, (loc.max_distance_km // 10) * 20))
             # KNN Algorithmic query to find nearby sellers , within logn time
-            query = text("""
+            query = text(f"""
             WITH filtered_locations AS (
                 SELECT 
                     l.id,
@@ -259,49 +318,54 @@ class SellerService :
                     ST_Distance(
                         l.location::geography, 
                         ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
-                    ) / 1000 as distance_km
+                    ) / 1000 AS distance_km
                 FROM locations l
-                WHERE l.location IS NOT NULL
-                AND ST_DWithin(
-                    l.location::geography,
-                    ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
-                    :radius_meters
-                )
+                WHERE {location_where}
                 ORDER BY l.location <-> ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)
                 LIMIT :expanded_limit
             ),
+            filtered_with_distance AS (
+                SELECT *
+                FROM filtered_locations
+                WHERE distance_km BETWEEN :min_distance_km AND :max_distance_km
+            ),
             seller_results AS (
                 SELECT DISTINCT ON (s.id)
-                    s.id as seller_id,
-                    s.email as seller_name,
-                    f.id as factory_id,
-                    f.name as factory_name,
-                    f.factory_type as factory_types,
-                    f.shop_categories as category,
-                    fl.latitude as factory_latitude,
-                    fl.longitude as factory_longitude,
+                    s.id AS seller_id,
+                    s.email AS seller_name,
+                    f.id AS factory_id,
+                    f.name AS factory_name,
+                    f.factory_type AS factory_types,
+                    f.shop_categories AS category,
+                    fl.latitude AS factory_latitude,
+                    fl.longitude AS factory_longitude,
                     fl.address_line1,
                     fl.city,
                     fl.state,
                     fl.country,
                     fl.distance_km
-                FROM filtered_locations fl
+                FROM filtered_with_distance fl
                 JOIN factories f ON fl.factory_id = f.id
                 JOIN sellers s ON f.seller_id = s.id
                 ORDER BY s.id, fl.distance_km
             )
-            SELECT * FROM seller_results 
+            SELECT * FROM seller_results
             ORDER BY distance_km
             LIMIT :final_limit
         """)
+            params = {
+            "latitude": loc.latitude,
+            "longitude": loc.longtitude,  # Note: consider renaming to longitude
+            "min_distance_km": loc.min_distance_km,
+            "max_distance_km": loc.max_distance_km,
+            "max_radius_meters": max_radius_meters,
+            "expanded_limit": expanded_limit,
+            "final_limit": 20
+        }
+            if loc.city:
+                params["city"] = loc.city
 
-            result = db.execute(query, {
-                'latitude': loc.latitude,
-                'longitude': loc.longtitude,
-                'radius_meters': 500000,  # 500km radius
-                'expanded_limit': 200,   # Get more locations initially
-                'final_limit': 20        # Final seller limit
-            })
+            result = db.execute(query, params)
             
             seller_data = result.fetchall()
 
@@ -342,44 +406,6 @@ class SellerService :
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         
-    @staticmethod
-    async def get_all_sellers_for_city(db : Session , loc : LocationSchema , city : str) :
-        try :
-            if city is None :
-                city = await SellerService.get_city_from_latlon(loc.latitude , loc.longtitude)
-
-                if not city:
-                    raise HTTPException(status_code=400 , detail="Cant Locate Your City Currently")
-            
-            print(city)
-
-            # Haversine expression
-            distance_expr =  SellerService.haversine_sql_expr(loc.latitude, loc.longtitude).label("distance_km")
-
-            
-            query = (
-                db.query(
-                    Seller,
-                    distance_expr
-                )
-                .join(Factory, Factory.seller_id == Seller.id)
-                .join(Location, Location.factory_id == Factory.id)
-                .filter(Location.city == city)
-                .order_by(distance_expr.asc())
-            )
-
-            sellers = query.all()
-            print(sellers)
-
-            return [
-                SellerSearchSchemaResponse(seller=seller, distance=distance)
-                for seller, distance in sellers
-            ]
-        except SQLAlchemyError as db_error:
-            raise HTTPException(status_code=500, detail=str(db_error))
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
 
 class SellerOrderService :
 
