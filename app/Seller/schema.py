@@ -143,7 +143,10 @@ class SellerFactoryDetailResponse(BaseModel) :
 class LocationSchema(BaseModel) :
     latitude : float
     longtitude : float
-
+    # dynamic filters
+    min_distance_km: Optional[float] = Field(default=0)
+    max_distance_km: Optional[float] = Field(default=500)  # override as needed
+    city: Optional[str] = None
 
 class SellerSearchSchemaResponse(BaseModel) :
     seller : SellerProfileSchema
@@ -283,3 +286,16 @@ class RatingSummary(BaseModel):
     total_ratings: int
     latest_review: Optional[str] = None
     latest_rating_date: Optional[datetime] = None
+
+class StateResponseSchema(BaseModel) :
+    states : List[str]
+
+    class Config :
+        from_attributes = True
+
+
+class CityResponseSchema(BaseModel) :
+    cities : List[str]
+
+    class Config :
+        from_attributes = True

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status , Response , Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from app.Seller.schema import LocationSchema, NearbySellerResponseSchema, SellerCreate, SellerFactoryDetailResponse, SellerProfileSchema, SellerResponse, FactoryCreate, FactoryResponse, LocationCreate, LocationResponse, ProductBase, ProductResponse, SellerSearchSchemaResponse, Token
+from app.Seller.schema import LocationSchema, NearbySellerResponseSchema, SellerCreate, SellerFactoryDetailResponse, SellerProfileSchema, SellerResponse, FactoryCreate, FactoryResponse, LocationCreate, LocationResponse, ProductBase, ProductResponse, SellerSearchSchemaResponse, StateResponseSchema, Token
 from app.Seller.service import  SellerOrderService, SellerService
 from typing import List, Optional
 from app.Utils.database import get_db  
@@ -69,3 +69,13 @@ async def seller_search_by_default(loc : LocationSchema , db: Session = Depends(
 async def placed_order_for_seller(db: Session = Depends(get_db) , vendor = Depends(get_current_user)):
    
     return await SellerOrderService.my_orders(db , vendor) 
+
+# State List APi
+@seller_router.get("/states/", status_code=200)
+async def get_states_list():
+    return await SellerService.get_states() 
+
+# city list Api 
+@seller_router.get("/cities/", status_code=200)
+async def get_cities_list(state : Optional[str] = None):
+    return await SellerService.get_cities_by_state(state) 
