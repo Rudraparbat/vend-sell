@@ -6,6 +6,7 @@ import random
 from sqlalchemy import case, func, select, text
 from app.Seller.models import *
 from app.Seller.schema import *
+from app.Seller.schema import SellerFactoryDetailResponse  # Add this import if the class is defined in schema.py
 from sqlalchemy.orm import Session, joinedload, selectinload
 from fastapi import HTTPException, status 
 from sqlalchemy.exc import SQLAlchemyError
