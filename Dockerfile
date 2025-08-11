@@ -1,20 +1,44 @@
-# Use slim image for a smaller footprint
-FROM python:3.13.2-slim-bookworm
-
+# Stage 1: builder (has build tools)
+FROM python:3.13.2-slim-bookworm AS builder
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# System packages only for building wheels (not in final)
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential \
+    libpq-dev \
+  && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
+# Copy only dependency manifests first to leverage Docker cache
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Create a venv for dependencies
+RUN python -m venv /opt/venv \
+  && . /opt/venv/bin/activate \
+  && pip install --upgrade pip \
+  && pip install --no-cache-dir -r requirements.txt
+# --no-cache-dir prevents pip wheel/http cache from bloating the layer[10][7][13].
+
+# Stage 2: runtime (no compilers, lean)
+FROM python:3.13.2-slim-bookworm AS runtime
+WORKDIR /app
+
+# Minimal system runtime deps only (psql client optional)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy app code
 COPY . .
+
+# Copy venv from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Copy migrations if they are not already in .
+# (Your COPY . . likely already includes alembic/ and alembic.ini)
 
 # Copy migration files
 COPY alembic/ ./alembic/
