@@ -172,6 +172,7 @@ class NearbySellerResponseSchema(BaseModel):
     factory_id: int
     factory_name: str
     factory_type : str
+    shop_categories : Optional[List[ShopCategoryEnum]] =  None
     distance: float
     factory_location: FactoryLocationSchema
 
