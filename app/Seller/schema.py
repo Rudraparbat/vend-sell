@@ -32,7 +32,7 @@ class FactoryBase(BaseModel):
     name: str
     factory_type: FactoryTypeEnum
     contact_number: Optional[str] = None
-    shop_categories : List[ShopCategoryEnum]
+    shop_categories : List[ShopCategoryEnum] = None
 
 class FactoryCreate(FactoryBase):
     pass
