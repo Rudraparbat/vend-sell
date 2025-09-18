@@ -299,3 +299,44 @@ class CityResponseSchema(BaseModel) :
 
     class Config :
         from_attributes = True
+
+
+# Schemas for updating Seller infos
+class LocationUpdateSchema(BaseModel):
+    id : int
+    address_line1: Optional[str]= None
+    address_line2: Optional[str]= None
+    city: Optional[str] = None
+    state: Optional[str]= None
+    country: Optional[str]= None
+    postal_code: Optional[str]= None
+    latitude: Optional[float]= None
+    longitude: Optional[float]= None
+
+class FactoryUpdateSchema(BaseModel):
+    id : int
+    name: Optional[str]= None
+    factory_type: Optional[FactoryTypeEnum]= None
+    contact_number: Optional[str]= None
+    shop_categories: Optional[List[ShopCategoryEnum]]= None
+
+class ProductUpdateSchema(BaseModel):
+    id : int
+    name: Optional[str]= None
+    description: Optional[str]= None
+    price: Optional[float]= None
+    stock_quantity: Optional[int]= None
+    qunatity_unit: Optional[QuantifiableTypeEnum]= None
+    category: Optional[str] = None
+
+class SellerUpdateSchema(BaseModel):
+    id : int
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+
+class SellerProfileUpdateSchmea(BaseModel) :
+    seller : Optional[SellerUpdateSchema] = None
+    factories : Optional[FactoryUpdateSchema]= None
+    location : Optional[LocationUpdateSchema] = None
+    products : Optional[List[ProductUpdateSchema]] = None
+
