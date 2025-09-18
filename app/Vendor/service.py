@@ -105,6 +105,27 @@ class VendorService :
             raise HTTPException(status_code= 500 , detail= str(e))
         
     @staticmethod
+    async def get_vendor_locations(db: Session , vendor):
+    # Verify shop exists
+        try :
+            vendor_detail  = db.query(Vendoruser).filter(Vendoruser.email == vendor.email).first()
+            if not vendor_detail:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Vendor Is Not Applicable"
+                )
+            
+            return vendor_detail.locations
+        
+        except SQLAlchemyError  as db_error :
+            raise db_error
+        except HTTPException as error :
+            db.rollback()
+            raise error
+        except Exception as e :
+            raise HTTPException(status_code= 500 , detail= str(e))
+        
+    @staticmethod
     async def save_vendor_shop_details(db: Session, shop: VendorShopCreate , vendor):
     # Verify Detail Exist
         try :

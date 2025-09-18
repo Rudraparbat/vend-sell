@@ -17,6 +17,10 @@ async def create_vendor(response : Response , vendor: VendorUserCreate, db: Sess
 async def create_location(location: VendorLocationCreate, db: Session = Depends(get_db) , vendor = Depends(get_current_user)):
     return await VendorService.create_vendor_location(db, location , vendor)
 
+@vendor_router.get("/locations/", status_code=status.HTTP_200_OK , response_model=List[VendorShopLocationResponse])
+async def get_locations(db: Session = Depends(get_db) , vendor = Depends(get_current_user)):
+    return await VendorService.get_vendor_locations(db , vendor)
+
 @vendor_router.post("/shop/create", status_code=status.HTTP_201_CREATED)
 async def create_shop(shop: VendorShopCreate, db: Session = Depends(get_db) ,  vendor = Depends(get_current_user)):
     return await VendorService.save_vendor_shop_details(db, shop , vendor)
