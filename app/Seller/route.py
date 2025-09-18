@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status , Response , Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from app.Seller.schema import LocationSchema, NearbySellerResponseSchema, SellerCreate, SellerFactoryDetailResponse, SellerProfileSchema, SellerResponse, FactoryCreate, FactoryResponse, LocationCreate, LocationResponse, ProductBase, ProductResponse, SellerSearchSchemaResponse, StateResponseSchema, Token
+from app.Seller.schema import LocationSchema, NearbySellerResponseSchema, SellerCreate, SellerFactoryDetailResponse, SellerProfileSchema, SellerProfileUpdateSchmea, SellerResponse, FactoryCreate, FactoryResponse, LocationCreate, LocationResponse, ProductBase, ProductResponse, SellerSearchSchemaResponse, StateResponseSchema, Token
 from app.Seller.service import  SellerOrderService, SellerService
 from typing import List, Optional
 from app.Utils.database import get_db  
@@ -59,10 +59,10 @@ async def seller_search_by_loc(loc : LocationSchema , db: Session = Depends(get_
    
     return await SellerService.get_nearby_sellers(db , loc)
 
-@seller_router.post("/default/search/", status_code=200)
-async def seller_search_by_default(loc : LocationSchema , db: Session = Depends(get_db) ,city : Optional[str] = None):
-   
-    return await SellerService.get_all_sellers_for_city(db , loc , city) 
+# Seller Detail Update Api 
+@seller_router.put("/edit/profile/", status_code=200 , response_model=dict)
+async def update_seller_profile(update_data : SellerProfileUpdateSchmea  , db: Session = Depends(get_db)) :
+    return await SellerService.update_seller_profile(db , update_data)
 
 
 @seller_router.post("/placed-orders/", status_code=200)

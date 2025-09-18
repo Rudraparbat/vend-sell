@@ -406,6 +406,63 @@ class SellerService :
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
         
+    # update seller profile
+    @staticmethod
+    async def update_seller_profile(db : Session , update_data : SellerProfileUpdateSchmea) : 
+        try :
+
+            if update_data.seller :
+                # update seller profile 
+                seller = db.query(Seller).filter(Seller.id == update_data.seller.id).first()
+                if not seller:
+                    raise HTTPException(status_code=400, detail="Seller Details not found")
+                clean_data = update_data.seller.dict(exclude_unset=True, exclude={"id"})
+                for key, value in clean_data.items():
+                    setattr(seller, key, value)
+                
+
+            if update_data.factories :
+                # update factory details 
+                factory = db.query(Factory).filter(Factory.id == update_data.factories.id).first()
+                if not factory :
+                    raise HTTPException(status_code=400, detail="Factory Details not found")
+                
+                clean_data = update_data.factories.dict(exclude_unset=True, exclude={"id"})
+
+                for key, value in clean_data.items():
+                    setattr(factory, key, value)
+                
+    
+            if update_data.location :
+                # update location details 
+                location = db.query(Location).filter(Location.id == update_data.location.id).first()
+                if not location :
+                    raise HTTPException(status_code=400, detail="Location Details not found")
+                
+
+                clean_data = update_data.location.dict(exclude_unset=True, exclude={"id"})
+
+                for key, value in clean_data.items():
+                    setattr(location , key, value)
+
+            if update_data.products :
+                # update product details 
+                products_dict_list = [product.dict(exclude_unset=True) for product in update_data.products]
+                db.bulk_update_mappings(Product, products_dict_list)
+
+            db.commit()
+
+            return {"message" : "Seller Profile Updated Successfully"}
+        except SQLAlchemyError as db_error:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(db_error))
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        
+
+        
+        
 
 class SellerOrderService :
 
