@@ -13,6 +13,10 @@ class Vendoruser(Base):
     password = Column(String, nullable=False)
     phone = Column(String(10), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # for reset the password
+    password_reset_token = Column(String, nullable=True)
+    reset_token_expires = Column(DateTime, nullable=True)
     
     # Relationships
     shops = relationship("VendorShopDetail", back_populates="vendor", cascade="all, delete-orphan")
