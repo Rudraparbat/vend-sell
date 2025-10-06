@@ -154,3 +154,24 @@ class OrderResponseSchema(PlaceOrderSchema):
     @property
     def total_items_count(self) -> int:
         return len(self.ordered_products)
+    
+
+# Password Reset Request Schhema
+class PasswordResetRequest(BaseModel) :
+    email : EmailStr
+
+class PasswordResetResponse(PasswordResetRequest) :
+    message : str
+
+    class Config :
+        from_attributes = True
+
+class ResetPasswordSchema(BaseModel) :
+    new_password : str 
+    token : str
+
+class ResetPasswordSuccessSchema(BaseModel) :
+    message : str 
+    class Config :
+        from_attributes = True
+    

@@ -1,16 +1,15 @@
-from cmath import acos, cos, sin
 from datetime import timedelta
-from math import radians
-
+from hashlib import sha256
+import secrets
 from fastapi.responses import JSONResponse
-from sqlalchemy import func
 from app.Seller.models import Factory, Product, Seller
 from app.Vendor.models import *
 from app.Vendor.schema import *
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, Request, Response, status 
+from fastapi import BackgroundTasks, HTTPException, Request, Response, status 
 from sqlalchemy.exc import SQLAlchemyError
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
+from app.Utils.email import send_email_with_retry
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
@@ -363,6 +362,106 @@ class VendorAuthService :
             raise error
         except Exception as e :
             raise HTTPException(status_code= 500 , detail= str(e))
+        
+    # Forget password service 
+    async def create_password_reset_request(body : PasswordResetRequest , db : Session , background_tasks : BackgroundTasks ) :
+        try :
+            pass
+            # fetch the user if exist 
+            user = db.query(Vendoruser).filter(Vendoruser.email == body.email).first()
+            if not user :
+                raise HTTPException(status_code=400 , detail = f"User with {body.email} id doesnt exist")
+            
+            # create a short lived token for reset password
+            token = secrets.token_urlsafe(32)  # 32 bytes = strong token
+            token_hash = sha256(token.encode()).hexdigest()
+
+            print(token)
+            print(token_hash)
+
+            #  save into db
+            user.password_reset_token = token_hash
+            user.reset_token_expires = datetime.utcnow() + timedelta(minutes=10)
+            db.commit()
+            db.refresh(user)
+
+            # start a background task to send an email
+            reset_link = f"http://127.0.0.1:8000/reset-password?token={token}"
+
+            # hardcoded for now
+            email_body = f"""
+                Dear {str(user.name)},
+
+                We received a request to reset your password for your Supplyllink account.
+                If you made this request, please click the link below to reset your password:
+
+                link : - {reset_link}
+
+                Best regards,
+                Supplyllink Team
+                {os.getenv("FRONTEND_URL")}
+                """
+
+            subject = "Reset Your Password – Supplyllink"
+
+            recipient = str(body.email)
+
+            # added a background task
+            # have to add celery 
+            background_tasks.add_task(
+                send_email_with_retry,
+                recipient=recipient,
+                subject=subject,
+                body=email_body,
+        )   
+            print(reset_link)
+
+            return PasswordResetResponse(
+                email = body.email,
+                message= "Password reset link sended to your email check it"
+            )
+        
+        except HTTPException as error :
+            raise error
+        except SQLAlchemyError as db_error :
+            db.rollback()
+            raise HTTPException(status_code=400 , detail= str(db_error))
+        except Exception as e :
+            db.rollback()
+            raise HTTPException(status_code =500 , detail= str(e))
+        
+    async def reset_password(body : ResetPasswordSchema , db : Session) :
+        try :
+            # verify the token 
+            hashed_token = sha256(body.token.encode()).hexdigest()
+            print(hashed_token)
+            user = db.query(Vendoruser).filter(
+                    Vendoruser.password_reset_token == hashed_token ,
+                    Vendoruser.reset_token_expires > datetime.utcnow()
+                ).first()
+
+            if not user :
+                raise HTTPException(status_code= 400 , detail="Token Expired")
+
+            #  hashe and save the password
+            hashed_password= bcrypt.hashpw(body.new_password.encode('utf-8'), bcrypt.gensalt())
+            print(hashed_password.decode('utf-8'))
+            user.password = hashed_password.decode('utf-8')
+            db.commit()
+
+            # send success message
+            return ResetPasswordSuccessSchema(
+                message="Password reset done successfully"
+            )
+        
+        except HTTPException as error :
+            raise error
+        except SQLAlchemyError as db_error :
+            db.rollback()
+            raise HTTPException(status_code=400 , detail= str(db_error))
+        except Exception as e :
+            db.rollback()
+            raise HTTPException(status_code =500 , detail= str(e))
         
 
 class VendorOrderService :

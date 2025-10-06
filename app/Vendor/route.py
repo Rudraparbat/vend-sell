@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.Utils.authservice import get_current_user
@@ -56,3 +56,12 @@ async def get_my_orders(
     order_status: Optional[OrderStatusEnum] = Query(None, description="Filter by order status")
 ):
     return await VendorOrderService.get_vendor_orders(db, vendor, order_status)
+
+# forget password route
+@vendor_router.post("/reset-request/", status_code=200)
+async def generate_password_reset_request(body : PasswordResetRequest , background_tasks : BackgroundTasks ,db : Session = Depends(get_db)) :
+    return await VendorAuthService.create_password_reset_request(body , db , background_tasks)
+
+@vendor_router.post("/reset-password/", status_code=200)
+async def password_reset(body : ResetPasswordSchema ,db : Session = Depends(get_db)) :
+    return await VendorAuthService.reset_password(body , db)
