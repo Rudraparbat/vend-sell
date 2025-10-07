@@ -16,9 +16,6 @@ services:
       timeout: 5s
       retries: 5
     container_name: vend_db
-
-volumes:
-  db_data:
   
   app:
     build: .
@@ -34,3 +31,7 @@ volumes:
     entrypoint: ["./start.sh"]
     # OR override command entirely
     # command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+
+volumes:
+  db_data:
