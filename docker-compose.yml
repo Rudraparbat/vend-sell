@@ -1,6 +1,22 @@
 # docker-compose.yml
 
 services:
+  db:
+    image: postgres
+    volumes: 
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    container_name: vend_db
+  
   app:
     build: .
     ports:
@@ -9,7 +25,9 @@ services:
       - .env
     image: app:vend-sell
     container_name: vend-sell
-    # Override the default start.sh if needed
+    depends_on:
+      db:
+        condition: service_healthy
     entrypoint: ["./start.sh"]
     # OR override command entirely
     # command: uvicorn main:app --host 0.0.0.0 --port 8000

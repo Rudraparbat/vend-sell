@@ -10,7 +10,7 @@ fs/
 
 /files/
 guide.txt
-
+data/
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
