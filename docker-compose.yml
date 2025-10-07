@@ -3,8 +3,8 @@
 services:
   db:
     image: postgres
-    volumes: 
-      - ./data/db:/var/lib/postgresql/data
+    volumes:
+      - db_data:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -16,6 +16,9 @@ services:
       timeout: 5s
       retries: 5
     container_name: vend_db
+
+volumes:
+  db_data:
   
   app:
     build: .
