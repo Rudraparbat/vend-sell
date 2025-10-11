@@ -6,7 +6,7 @@ from app.Seller.route import seller_router
 from app.Vendor.route import vendor_router
 
 
-app = FastAPI()
+app = FastAPI(redirect_slashes=False)
 @app.get("/")
 def read_root():
     return {"Message": "Welcome to the Vendor seller application!"}
