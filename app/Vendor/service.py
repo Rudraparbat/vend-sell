@@ -366,7 +366,6 @@ class VendorAuthService :
     # Forget password service 
     async def create_password_reset_request(body : PasswordResetRequest , db : Session , background_tasks : BackgroundTasks ) :
         try :
-            pass
             # fetch the user if exist 
             user = db.query(Vendoruser).filter(Vendoruser.email == body.email).first()
             if not user :
@@ -386,7 +385,7 @@ class VendorAuthService :
             db.refresh(user)
 
             # start a background task to send an email
-            reset_link = f"https://supplylink.vercel.app/reset-password/:{token}"
+            reset_link = f"{os.getenv("FRONTEND_URL")}reset-password/:{token}"
 
             # hardcoded for now
             email_body = f"""
