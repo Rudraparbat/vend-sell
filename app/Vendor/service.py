@@ -386,7 +386,7 @@ class VendorAuthService :
             db.refresh(user)
 
             # start a background task to send an email
-            reset_link = f"http://127.0.0.1:8000/reset-password?token={token}"
+            reset_link = f"https://supplylink.vercel.app/reset-password/:{token}"
 
             # hardcoded for now
             email_body = f"""
@@ -441,7 +441,7 @@ class VendorAuthService :
                 ).first()
 
             if not user :
-                raise HTTPException(status_code= 400 , detail="Token Expired")
+                raise HTTPException(status_code= 400 , detail="Token Expired or user is not valid")
 
             #  hashe and save the password
             hashed_password= bcrypt.hashpw(body.new_password.encode('utf-8'), bcrypt.gensalt())

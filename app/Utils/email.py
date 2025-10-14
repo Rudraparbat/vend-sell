@@ -56,6 +56,7 @@ async def send_email_with_retry(
     
     for attempt in range(1, max_retries + 1):
         try:
+            print("current attempt : " , attempt)
             # Create message
             message = MIMEMultipart('alternative')
             message['Subject'] = subject
@@ -70,7 +71,7 @@ async def send_email_with_retry(
             with smtplib.SMTP(
                 EMAIL_HOST, 
                 EMAIL_PORT,
-                timeout=30
+                timeout=5
             ) as server:
                 server.ehlo()
                 
@@ -85,11 +86,14 @@ async def send_email_with_retry(
                 
                 # Send email
                 server.send_message(message)
+
+                server.quit()
                 
             logger.info(
                 f"Email sent successfully to {recipients} "
                 f"on attempt {attempt}"
             )
+            print("Email Sended Succesfully")
             return True
             
         except smtplib.SMTPAuthenticationError as e:
