@@ -386,7 +386,7 @@ class VendorAuthService :
             db.refresh(user)
 
             # start a background task to send an email
-            reset_link = f"https://supplylink.vercel.app/reset-password/:{token}"
+            reset_link = f"{os.getenv("FRONTEND_URL")}reset-password/:{token}"
 
             # hardcoded for now
             email_body = f"""
