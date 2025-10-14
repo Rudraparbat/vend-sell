@@ -366,7 +366,6 @@ class VendorAuthService :
     # Forget password service 
     async def create_password_reset_request(body : PasswordResetRequest , db : Session , background_tasks : BackgroundTasks ) :
         try :
-            pass
             # fetch the user if exist 
             user = db.query(Vendoruser).filter(Vendoruser.email == body.email).first()
             if not user :
