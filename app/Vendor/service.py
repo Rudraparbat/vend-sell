@@ -385,7 +385,6 @@ class VendorAuthService :
             db.refresh(user)
 
             # start a background task to send an email
-            reset_link = f"{os.getenv("FRONTEND_URL")}reset-password/:{token}"
 
             # hardcoded for now
             email_body = f"""
@@ -394,7 +393,7 @@ class VendorAuthService :
                 We received a request to reset your password for your Supplyllink account.
                 If you made this request, please click the link below to reset your password:
 
-                link : - {reset_link}
+                link : - {os.getenv("FRONTEND_URL")}reset-password?token={token}
 
                 Best regards,
                 Supplyllink Team
@@ -405,6 +404,7 @@ class VendorAuthService :
 
             recipient = str(body.email)
 
+
             # added a background task
             # have to add celery 
             background_tasks.add_task(
@@ -413,7 +413,6 @@ class VendorAuthService :
                 subject=subject,
                 body=email_body,
         )   
-            print(reset_link)
 
             return PasswordResetResponse(
                 email = body.email,
